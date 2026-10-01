@@ -7,6 +7,7 @@ import com.saha7pritam.razorpay.merchant.dto.response.ApiKeyCreateResponse;
 import com.saha7pritam.razorpay.merchant.dto.response.ApiKeyResponse;
 import com.saha7pritam.razorpay.merchant.entity.ApiKey;
 import com.saha7pritam.razorpay.merchant.entity.Merchant;
+import com.saha7pritam.razorpay.merchant.mapper.ApikeyMapper;
 import com.saha7pritam.razorpay.merchant.repository.ApiKeyRepository;
 import com.saha7pritam.razorpay.merchant.repository.MerchantRepository;
 import com.saha7pritam.razorpay.merchant.service.ApiKeyService;
@@ -29,6 +30,8 @@ public class ApiKeyServiceImpl implements ApiKeyService {
 
     private final MerchantRepository merchantRepository;
     private final ApiKeyRepository apiKeyRepository;
+
+    private final ApikeyMapper apikeyMapper;
 
 
     public ApiKeyCreateResponse create(UUID merchantId, CreateApiKeyRequest request) {
@@ -58,15 +61,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
     @Override
     @Transactional
     public List<ApiKeyResponse> listByMerchant(UUID merchantId) {
-        return apiKeyRepository.findByMerchant_Id(merchantId).stream()
-                .map(apiKey -> new ApiKeyResponse(
-                        apiKey.getId(),
-                        apiKey.getKeyId(),
-                        apiKey.getEnvironment(),
-                        apiKey.isEnabled(),
-                        apiKey.getLastUsedAt(), null
-                ))
-                .toList();
+        return apikeyMapper.toResponseList(apiKeyRepository.findByMerchant_Id(merchantId));
     }
 
     @Override
