@@ -1,8 +1,9 @@
 package com.saha7pritam.razorpay.operations.entity;
 
+import com.saha7pritam.razorpay.common.entity.BaseEntity;
 import jakarta.persistence.*;
 
-public class SettlementPayment {
+public class SettlementPayment extends BaseEntity {
 
     @EmbeddedId
     private SettlementPaymentId id;
