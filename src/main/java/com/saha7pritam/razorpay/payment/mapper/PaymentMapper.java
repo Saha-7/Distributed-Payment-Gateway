@@ -1,7 +1,7 @@
 package com.saha7pritam.razorpay.payment.mapper;
 
 import com.saha7pritam.razorpay.payment.entity.Payment;
-import com.saha7pritam.razorpay.payment.entity.PaymentResponse;
+import com.saha7pritam.razorpay.payment.dto.response.PaymentResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;
