@@ -1,26 +1,40 @@
 package com.saha7pritam.razorpay.payment.service.impl;
 
 import com.saha7pritam.razorpay.common.enums.OrderStatus;
+import com.saha7pritam.razorpay.common.exception.BusinessRuleViolationException;
 import com.saha7pritam.razorpay.common.exception.DuplicateResourceException;
+import com.saha7pritam.razorpay.common.exception.ResourceNotFoundException;
 import com.saha7pritam.razorpay.payment.dto.request.CreateOrderRequest;
 import com.saha7pritam.razorpay.payment.dto.response.OrderResponse;
 import com.saha7pritam.razorpay.payment.entity.OrderRecord;
+import com.saha7pritam.razorpay.payment.entity.Payment;
+import com.saha7pritam.razorpay.payment.dto.response.PaymentResponse;
+import com.saha7pritam.razorpay.payment.mapper.OrderMapper;
+import com.saha7pritam.razorpay.payment.mapper.PaymentMapper;
 import com.saha7pritam.razorpay.payment.repository.OrderRepository;
+import com.saha7pritam.razorpay.payment.repository.PaymentRepository;
 import com.saha7pritam.razorpay.payment.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
+    private final PaymentRepository paymentRepository;
+
+    private final PaymentMapper paymentMapper;
+    private final OrderMapper orderMapper;
 
     @Value("${payment.order.default-order-expiry-minutes:30}")
     private int defaultOrderExpiryMinutes;
@@ -28,6 +42,7 @@ public class OrderServiceImpl implements OrderService {
 
 
     @Override
+    @Transactional
     public OrderResponse create(UUID merchantId, CreateOrderRequest request) {
         if (request.receipt() != null && orderRepository.existsByMerchantIdAndReceipt(merchantId, request.receipt())) {
             throw new DuplicateResourceException("ORDER_RECEIPT_DUPLICATE", "Order with receipt already exists: " + request.receipt());
@@ -47,16 +62,42 @@ public class OrderServiceImpl implements OrderService {
 
         order = orderRepository.save(order);
 
-        return new OrderResponse(
-                order.getId(),
-                order.getMerchantId(),
-                order.getReceipt(),
-                order.getAmount(),
-                order.getOrderStatus(),
-                order.getAttempts(),
-                order.getNotes(),
-                order.getExpiresAt(),
-                null
-        );
+        return orderMapper.toResponse(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse getById(UUID merchantId, UUID orderId) {
+        OrderRecord order = orderRepository.findByIdAndMerchantId(orderId, merchantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
+
+        return orderMapper.toResponse(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse cancel(UUID merchantId, UUID orderId) {
+        OrderRecord order = orderRepository.findByIdAndMerchantId(orderId, merchantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
+
+        if(order.getOrderStatus() == OrderStatus.CANCELED || order.getOrderStatus() == OrderStatus.PAID) {
+            throw new BusinessRuleViolationException("ORDER_CANNOT_BE_CANCELED", "Order cannot be canceled as it is already " + order.getOrderStatus());
+
+        }
+
+        order.setOrderStatus(OrderStatus.CANCELED);
+        order = orderRepository.save(order);
+
+        return orderMapper.toResponse(order);
+    }
+
+    @Override
+    public List<PaymentResponse> listPayments(UUID merchantId, UUID orderId) {
+        OrderRecord order = orderRepository.findByIdAndMerchantId(orderId, merchantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
+
+        List<Payment> paymentList = paymentRepository.findByOrder_Id(order);
+
+        return paymentMapper.toResponseList(paymentList);
     }
 }
