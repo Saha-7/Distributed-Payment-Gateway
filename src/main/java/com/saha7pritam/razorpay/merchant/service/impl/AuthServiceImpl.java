@@ -7,6 +7,7 @@ import com.saha7pritam.razorpay.merchant.dto.request.MerchantSignupRequest;
 import com.saha7pritam.razorpay.merchant.dto.response.MerchantResponse;
 import com.saha7pritam.razorpay.merchant.entity.AppUser;
 import com.saha7pritam.razorpay.merchant.entity.Merchant;
+import com.saha7pritam.razorpay.merchant.mapper.MerchantMapper;
 import com.saha7pritam.razorpay.merchant.repository.AppUserRepository;
 import com.saha7pritam.razorpay.merchant.repository.MerchantRepository;
 import com.saha7pritam.razorpay.merchant.service.AuthService;
@@ -22,8 +23,9 @@ import org.springframework.stereotype.Service;
 public class AuthServiceImpl implements AuthService {
 
     private final AppUserRepository appUserRepository;
-
     private final MerchantRepository merchantRepository;
+
+    private final MerchantMapper merchantMapper;
 
     @Override
     @Transactional
@@ -32,15 +34,9 @@ public class AuthServiceImpl implements AuthService {
             throw new DuplicateResourceException("MERCHANT_DUPLICATE_EMAIL", "Merchant with email already exists");
         }
 
-        Merchant merchant = Merchant.builder()
-                .name(request.name())
-                .email(request.email())
-                .businessName(request.businessName())
-                .businessType(request.businessType())
-                .status(MerchantStatus.PENDING_KYC)
-                .build();
-        
-        merchantRepository.save(merchant);
+        Merchant merchant = merchantMapper.toEntityFromSignUpRequest(request);
+        merchant.setStatus(MerchantStatus.PENDING_KYC);
+        merchant = merchantRepository.save(merchant);
 
         AppUser appUser = AppUser.builder()
                 .email(request.email())
@@ -51,13 +47,6 @@ public class AuthServiceImpl implements AuthService {
 
         appUserRepository.save(appUser);
 
-        return new MerchantResponse(
-                merchant.getId(),
-                merchant.getName(),
-                merchant.getEmail(),
-                merchant.getBusinessName(),
-                merchant.getBusinessType(),
-                merchant.getStatus()
-        );
+        return merchantMapper.toResponse(merchant);
     }
 }
