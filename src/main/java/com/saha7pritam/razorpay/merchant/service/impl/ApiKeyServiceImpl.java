@@ -7,9 +7,11 @@ import com.saha7pritam.razorpay.merchant.dto.response.ApiKeyCreateResponse;
 import com.saha7pritam.razorpay.merchant.dto.response.ApiKeyResponse;
 import com.saha7pritam.razorpay.merchant.entity.ApiKey;
 import com.saha7pritam.razorpay.merchant.entity.Merchant;
+import com.saha7pritam.razorpay.merchant.mapper.ApikeyMapper;
 import com.saha7pritam.razorpay.merchant.repository.ApiKeyRepository;
 import com.saha7pritam.razorpay.merchant.repository.MerchantRepository;
 import com.saha7pritam.razorpay.merchant.service.ApiKeyService;
+import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,8 @@ public class ApiKeyServiceImpl implements ApiKeyService {
 
     private final MerchantRepository merchantRepository;
     private final ApiKeyRepository apiKeyRepository;
+
+    private final ApikeyMapper apikeyMapper;
 
 
     public ApiKeyCreateResponse create(UUID merchantId, CreateApiKeyRequest request) {
@@ -57,15 +61,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
     @Override
     @Transactional
     public List<ApiKeyResponse> listByMerchant(UUID merchantId) {
-        return apiKeyRepository.findByMerchant_Id(merchantId).stream()
-                .map(apiKey -> new ApiKeyResponse(
-                        apiKey.getId(),
-                        apiKey.getKeyId(),
-                        apiKey.getEnvironment(),
-                        apiKey.isEnabled(),
-                        apiKey.getLastUsedAt(), null
-                ))
-                .toList();
+        return apikeyMapper.toResponseList(apiKeyRepository.findByMerchant_Id(merchantId));
     }
 
     @Override
@@ -79,10 +75,12 @@ public class ApiKeyServiceImpl implements ApiKeyService {
     }
 
     @Override
-    public ApiKeyCreateResponse rotate(UUID merchantId, UUID keyId) {
+    public @Nullable ApiKeyCreateResponse rotate(UUID merchantId, UUID keyId) {
         ApiKey apiKey = apiKeyRepository.findById(keyId)
                 .filter(k -> k.getMerchant().getId().equals(merchantId))
                 .orElseThrow(() -> new ResourceNotFoundException("ApiKey", keyId));
+
+        if(!apiKey.isEnabled()) throw new RuntimeException("Cannot rotate a disabled API key");
 
         String newKeySecret = RandomizerUtil.randonBase64(40);
         apiKey.setPreviouskeySecretHash(apiKey.getKeySecretHash());
