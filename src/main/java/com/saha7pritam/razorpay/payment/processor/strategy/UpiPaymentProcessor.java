@@ -3,7 +3,10 @@ package com.saha7pritam.razorpay.payment.processor.strategy;
 import com.saha7pritam.razorpay.payment.processor.PaymentProcessor;
 import com.saha7pritam.razorpay.payment.processor.dto.PaymentProcessorRequest;
 import com.saha7pritam.razorpay.payment.processor.dto.PaymentProcessorResponse;
+import org.springframework.stereotype.Component;
 
+
+@Component
 public class UpiPaymentProcessor implements PaymentProcessor {
 
     @Override
