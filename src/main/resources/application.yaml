@@ -14,7 +14,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 vault:
-  master-key: smdbfrvjksrbhksdnfvksiolfrnslnv54sd
+  master-key: ${MASTER_KEY}
 
 
 
