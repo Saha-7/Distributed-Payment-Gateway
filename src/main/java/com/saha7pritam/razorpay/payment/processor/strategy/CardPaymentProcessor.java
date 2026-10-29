@@ -4,28 +4,35 @@ import com.saha7pritam.razorpay.common.util.RandomizerUtil;
 import com.saha7pritam.razorpay.payment.processor.PaymentProcessor;
 import com.saha7pritam.razorpay.payment.processor.dto.PaymentProcessorRequest;
 import com.saha7pritam.razorpay.payment.processor.dto.PaymentProcessorResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 
 @Component
+@Slf4j
 public class CardPaymentProcessor implements PaymentProcessor {
+
+    public static final String PAN_CARD_DECLINED = "4000000000000002";
+    public static final String PAN_CARD_EXPIRED = "4000000000000069";
 
     @Override
     public PaymentProcessorResponse charge(PaymentProcessorRequest request) {
-        final String VPA_CODE_FAIL = "fail@okaxis";
 
-        String bankCode = request.methodDetails() != null ?
-                request.methodDetails().get("vpa").toString() : null;
+        String pan = request.pan();
 
-        // simulation
-        if (VPA_CODE_FAIL.equals(bankCode)) {
-            return new PaymentProcessorResponse.Failure("UPI_REJECTED",
-                    "Banked rejected the transaction registration"
-            );
+        if (PAN_CARD_DECLINED.equals(pan)) {
+            log.warn("Card declined");
+            return new PaymentProcessorResponse.Failure("CARD_DECLINED", "Card declined by bank");
         }
 
-        String processorRef = "UPI_PROCESSOR_"+ RandomizerUtil.randonBase64(16);
+        if (PAN_CARD_EXPIRED.equals(pan)) {
+            log.warn("Pan card has expired");
+            return new PaymentProcessorResponse.Failure("CARD_EXPIRED", "Card has expired");
+        }
+
+        String processorRef = "CARD_PROCESSOR_"+ RandomizerUtil.randonBase64(16);
 
         return new PaymentProcessorResponse.Pending(processorRef);
+
     }
 }
