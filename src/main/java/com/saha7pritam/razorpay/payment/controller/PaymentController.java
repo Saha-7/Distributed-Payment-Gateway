@@ -19,7 +19,7 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    UUID merchantId = UUID.fromString("772d097e-dd6c-4025-ae44-7bf7495e359f");
+    UUID merchantId = UUID.fromString("b06bcf6e-5a3d-424a-9d29-83e31c30f3e4");
 
     @PostMapping
     public ResponseEntity<PaymentResponse> initiate(@Valid @RequestBody PaymentinitRequest request){
@@ -27,7 +27,8 @@ public class PaymentController {
                 .body(paymentService.initiate(merchantId, request));
     }
 
-    @PostMapping
+
+    @PostMapping("/{paymentId}/capture")
     public ResponseEntity<PaymentResponse> capture(@PathVariable UUID paymentId){
         return ResponseEntity.ok(paymentService.capture(merchantId, paymentId));
     }
