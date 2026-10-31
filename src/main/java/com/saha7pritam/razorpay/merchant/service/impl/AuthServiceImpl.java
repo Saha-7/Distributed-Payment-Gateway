@@ -3,17 +3,24 @@ package com.saha7pritam.razorpay.merchant.service.impl;
 import com.saha7pritam.razorpay.common.enums.MerchantStatus;
 import com.saha7pritam.razorpay.common.enums.UserRole;
 import com.saha7pritam.razorpay.common.exception.DuplicateResourceException;
+import com.saha7pritam.razorpay.common.exception.ResourceNotFoundException;
+import com.saha7pritam.razorpay.merchant.dto.request.LoginRequest;
 import com.saha7pritam.razorpay.merchant.dto.request.MerchantSignupRequest;
+import com.saha7pritam.razorpay.merchant.dto.response.LoginResponse;
 import com.saha7pritam.razorpay.merchant.dto.response.MerchantResponse;
 import com.saha7pritam.razorpay.merchant.entity.AppUser;
 import com.saha7pritam.razorpay.merchant.entity.Merchant;
 import com.saha7pritam.razorpay.merchant.mapper.MerchantMapper;
 import com.saha7pritam.razorpay.merchant.repository.AppUserRepository;
 import com.saha7pritam.razorpay.merchant.repository.MerchantRepository;
+import com.saha7pritam.razorpay.merchant.security.JwtUtil;
 import com.saha7pritam.razorpay.merchant.service.AuthService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 
@@ -26,6 +33,11 @@ public class AuthServiceImpl implements AuthService {
     private final MerchantRepository merchantRepository;
 
     private final MerchantMapper merchantMapper;
+
+    private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+
+    private final JwtUtil jwtUtil;
 
     @Override
     @Transactional
@@ -40,7 +52,7 @@ public class AuthServiceImpl implements AuthService {
 
         AppUser appUser = AppUser.builder()
                 .email(request.email())
-                .passwordHash(request.password())  // ToDo: Encrypt using Bcrypt
+                .passwordHash(passwordEncoder.encode(request.password()))
                 .role(UserRole.OWNER)
                 .merchant(merchant)
                 .build();
@@ -48,5 +60,19 @@ public class AuthServiceImpl implements AuthService {
         appUserRepository.save(appUser);
 
         return merchantMapper.toResponse(merchant);
+    }
+
+    @Override
+    public LoginResponse login(LoginRequest request) {
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.email(), request.password())
+        );
+
+        AppUser appUser = appUserRepository.findByEmail(request.email())
+                .orElseThrow(() -> new ResourceNotFoundException("User", request.email()));
+
+        String token = jwtUtil.generateAccessToken(request.email(), appUser.getMerchant().getId(), appUser.getRole().toString());
+
+        return new LoginResponse(token);
     }
 }
