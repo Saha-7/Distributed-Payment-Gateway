@@ -14,6 +14,7 @@ import com.saha7pritam.razorpay.merchant.service.ApiKeyService;
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,30 +34,29 @@ public class ApiKeyServiceImpl implements ApiKeyService {
 
     private final ApikeyMapper apikeyMapper;
 
+    //private BCryptPasswordEncoder BCRPYT = new BCryptPasswordEncoder();
 
+    @Override
+    @Transactional
     public ApiKeyCreateResponse create(UUID merchantId, CreateApiKeyRequest request) {
-        Merchant merchant = merchantRepository.findById(merchantId).orElseThrow(() -> new ResourceNotFoundException("merchant", merchantId));
+        Merchant merchant = merchantRepository.findById(merchantId)
+                .orElseThrow(() -> new ResourceNotFoundException("merchant", merchantId));
 
-        String KeyId = "rzp_"+ request.environment().name().toLowerCase() + "_" + RandomizerUtil.randonBase64(24);
-
+        String keyId = "rzp_"+request.environment().name().toLowerCase()+"_"+ RandomizerUtil.randonBase64(24);
         String rawSecret = RandomizerUtil.randonBase64(40);
 
         ApiKey apiKey = ApiKey.builder()
-                .keyId(KeyId)
                 .merchant(merchant)
-                .keySecretHash(rawSecret) // ToDo: Encrypt using Bcrypt
+                .keyId(keyId)
+                .keySecretHash(rawSecret)
                 .environment(request.environment())
                 .build();
 
         apiKey = apiKeyRepository.save(apiKey);
 
-        return new ApiKeyCreateResponse(
-                apiKey.getId(),
-                KeyId,
-                rawSecret,
-                request.environment()
-        );
+        return new ApiKeyCreateResponse(apiKey.getId(), keyId, rawSecret, request.environment());
     }
+
 
     @Override
     @Transactional
