@@ -34,7 +34,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
 
     private final ApikeyMapper apikeyMapper;
 
-    //private BCryptPasswordEncoder BCRPYT = new BCryptPasswordEncoder();
+    private BCryptPasswordEncoder BCRPYT = new BCryptPasswordEncoder();
 
     @Override
     @Transactional
@@ -48,7 +48,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
         ApiKey apiKey = ApiKey.builder()
                 .merchant(merchant)
                 .keyId(keyId)
-                .keySecretHash(rawSecret)
+                .keySecretHash(BCRPYT.encode(rawSecret))
                 .environment(request.environment())
                 .build();
 
@@ -84,7 +84,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
 
         String newKeySecret = RandomizerUtil.randonBase64(40);
         apiKey.setPreviouskeySecretHash(apiKey.getKeySecretHash());
-        apiKey.setKeySecretHash(newKeySecret);
+        apiKey.setKeySecretHash(BCRPYT.encode(newKeySecret));
         apiKey.setRotatedAt(LocalDateTime.now());
         apiKey.setGracePeriodsExpiresAt(LocalDateTime.now().plusHours(24)); // 1 day grace period
 
