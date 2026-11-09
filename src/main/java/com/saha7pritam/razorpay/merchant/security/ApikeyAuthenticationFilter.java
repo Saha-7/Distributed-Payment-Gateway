@@ -96,7 +96,13 @@ public class ApikeyAuthenticationFilter extends OncePerRequestFilter {
             merchantContext.setMerchantId(apiKeyEntry.merchantId());
             merchantContext.setKeyId(apiKeyEntry.keyId());
 
+            log.info("API key authenticated. Proceeding to next filter.");
+
             filterChain.doFilter(request, response);
+
+            log.info("Request completed. Status: {}, Committed: {}",
+                    response.getStatus(),
+                    response.isCommitted());
 
         } catch (Exception e) {
             handlerExceptionResolver.resolveException(request, response, null, e);
@@ -105,12 +111,12 @@ public class ApikeyAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private ApiKeyCacheEntry loadAndCache(String keyId) {
-        ApiKey apiKey = apiKeyRepository.findBykeyId(keyId).orElse(null);
+        ApiKey apiKey = apiKeyRepository.findByKeyId(keyId).orElse(null);
         if (apiKey == null) return null;
         ApiKeyCacheEntry apiKeyCacheEntry = new ApiKeyCacheEntry(
                 apiKey.getKeyId(),
                 apiKey.getKeySecretHash(),
-                apiKey.getPreviouskeySecretHash(),
+                apiKey.getPreviousKeySecretHash(),
                 apiKey.getGracePeriodExpiresAt(),
                 apiKey.getMerchant().getId(),
                 apiKey.getEnvironment(),

@@ -35,7 +35,7 @@ public class ApiKey extends BaseEntity {
     private String keySecretHash;
 
     @Column( length = 200)
-    private String previouskeySecretHash;
+    private String previousKeySecretHash;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

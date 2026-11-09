@@ -87,7 +87,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
         if(!apiKey.isEnabled()) throw new RuntimeException("Cannot rotate a disabled API key");
 
         String newRawSecret = RandomizerUtil.randonBase64(40);
-        apiKey.setPreviouskeySecretHash(apiKey.getKeySecretHash());
+        apiKey.setPreviousKeySecretHash(apiKey.getKeySecretHash());
         apiKey.setKeySecretHash(BCRPYT.encode(newRawSecret));
         apiKey.setRotatedAt(LocalDateTime.now());
         apiKey.setGracePeriodExpiresAt(LocalDateTime.now().plusHours(24));
