@@ -2,6 +2,7 @@ package com.saha7pritam.razorpay.merchant.service.impl;
 
 import com.saha7pritam.razorpay.common.exception.ResourceNotFoundException;
 import com.saha7pritam.razorpay.common.util.RandomizerUtil;
+import com.saha7pritam.razorpay.merchant.cache.ApiKeyCache;
 import com.saha7pritam.razorpay.merchant.dto.request.CreateApiKeyRequest;
 import com.saha7pritam.razorpay.merchant.dto.response.ApiKeyCreateResponse;
 import com.saha7pritam.razorpay.merchant.dto.response.ApiKeyResponse;
@@ -35,6 +36,8 @@ public class ApiKeyServiceImpl implements ApiKeyService {
     private final ApikeyMapper apikeyMapper;
 
     private BCryptPasswordEncoder BCRPYT = new BCryptPasswordEncoder();
+
+    private final ApiKeyCache apiKeyCache;
 
     @Override
     @Transactional
@@ -72,6 +75,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
                 .orElseThrow(() -> new ResourceNotFoundException("ApiKey", keyId));
 
         key.setEnabled(false);
+        apiKeyCache.evict(key.getKeyId());
     }
 
     @Override
@@ -82,19 +86,16 @@ public class ApiKeyServiceImpl implements ApiKeyService {
 
         if(!apiKey.isEnabled()) throw new RuntimeException("Cannot rotate a disabled API key");
 
-        String newKeySecret = RandomizerUtil.randonBase64(40);
+        String newRawSecret = RandomizerUtil.randonBase64(40);
         apiKey.setPreviouskeySecretHash(apiKey.getKeySecretHash());
-        apiKey.setKeySecretHash(BCRPYT.encode(newKeySecret));
+        apiKey.setKeySecretHash(BCRPYT.encode(newRawSecret));
         apiKey.setRotatedAt(LocalDateTime.now());
-        apiKey.setGracePeriodsExpiresAt(LocalDateTime.now().plusHours(24)); // 1 day grace period
+        apiKey.setGracePeriodExpiresAt(LocalDateTime.now().plusHours(24));
+        apiKey = apiKeyRepository.save(apiKey);
 
-        apiKey =  apiKeyRepository.save(apiKey);
+        apiKeyCache.evict(apiKey.getKeyId());
 
-        return new ApiKeyCreateResponse(
-                apiKey.getId(),
-                apiKey.getKeyId(),
-                newKeySecret,
-                apiKey.getEnvironment()
-        );
+        return new ApiKeyCreateResponse(apiKey.getId(), apiKey.getKeyId(),
+                newRawSecret, apiKey.getEnvironment());
     }
 }
