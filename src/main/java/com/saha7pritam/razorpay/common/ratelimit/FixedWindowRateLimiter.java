@@ -1,6 +1,5 @@
 package com.saha7pritam.razorpay.common.ratelimit;
 
-import jakarta.servlet.FilterConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
