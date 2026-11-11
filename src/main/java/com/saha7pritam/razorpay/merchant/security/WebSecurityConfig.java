@@ -1,6 +1,7 @@
 package com.saha7pritam.razorpay.merchant.security;
 
 
+import com.saha7pritam.razorpay.common.idempotency.IdempotencyFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +26,8 @@ public class WebSecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final ApikeyAuthenticationFilter apikeyAuthenticationFilter;
 
+    private final IdempotencyFilter idempotencyFilter;
+
     @Bean
     @Order(1)
     public SecurityFilterChain jwtChain(HttpSecurity http) {
@@ -38,28 +41,30 @@ public class WebSecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(idempotencyFilter, JwtAuthenticationFilter.class)
                 .build();
     }
-
 
     @Bean
     @Order(2)
-    public SecurityFilterChain apiKeyChain(HttpSecurity http){
-        return http.securityMatcher(API_KEY_ROUTES)
+    public SecurityFilterChain apiKeyChain(HttpSecurity http) {
+        return http
+                .securityMatcher(API_KEY_ROUTES)
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().authenticated()
+                )
                 .addFilterBefore(apikeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(idempotencyFilter, ApikeyAuthenticationFilter.class)
                 .build();
     }
-
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-
 
     @Bean
     public AuthenticationManager authenticationManager(MerchantUserDetailService userDetailsService,
