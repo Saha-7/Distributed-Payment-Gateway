@@ -3,7 +3,10 @@ package com.saha7pritam.razorpay.payment.repository;
 import com.saha7pritam.razorpay.common.enums.PaymentStatus;
 import com.saha7pritam.razorpay.payment.entity.OrderRecord;
 import com.saha7pritam.razorpay.payment.entity.Payment;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,4 +20,13 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     Optional<Payment> findByIdAndMerchantId(UUID merchantId, UUID paymentId);
 
     List<Payment> findByStatusAndCreatedAtBefore(PaymentStatus paymentStatus, LocalDateTime globalWindow);
+
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Payment p where p.id = :paymentId and p.merchantId = :merchantId")
+    Optional<Payment> findByIdAndMerchantIdForUpdate(UUID paymentId, UUID merchantId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Payment p where p.id = :paymentId")
+    Optional<Payment> findByIdForUpdate(UUID paymentId);
 }

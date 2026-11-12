@@ -26,12 +26,18 @@ import java.util.UUID;
 @NoArgsConstructor
 @Builder
 public class OrderRecord extends BaseEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
     // no foreign (for cross service boundary) key relationship to Merchant entity, just store the merchantId. Because of the Logical 4 layer separation
+    // no FK — cross-service boundary
+    @Column(name = "merchant_id", nullable = false)
     private UUID merchantId;
+
+    @Column(name = "customer_id")
+    private UUID customerId;
 
     @Embedded
     private Money amount;
@@ -41,7 +47,8 @@ public class OrderRecord extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private OrderStatus orderStatus;
+    private OrderStatus orderStatus = OrderStatus.CREATED;
+
 
     @Column(nullable = false)
     @Builder.Default

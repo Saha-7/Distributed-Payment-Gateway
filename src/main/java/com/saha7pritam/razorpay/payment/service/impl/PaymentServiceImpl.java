@@ -5,7 +5,7 @@ import com.saha7pritam.razorpay.common.enums.PaymentEvent;
 import com.saha7pritam.razorpay.common.enums.PaymentStatus;
 import com.saha7pritam.razorpay.common.exception.BusinessRuleViolationException;
 import com.saha7pritam.razorpay.common.exception.ResourceNotFoundException;
-import com.saha7pritam.razorpay.payment.dto.request.PaymentinitRequest;
+import com.saha7pritam.razorpay.payment.dto.request.PaymentInitRequest;
 import com.saha7pritam.razorpay.payment.dto.response.PaymentResponse;
 import com.saha7pritam.razorpay.payment.entity.OrderRecord;
 import com.saha7pritam.razorpay.payment.entity.Payment;
@@ -42,19 +42,23 @@ public class PaymentServiceImpl implements PaymentService {
 
     private final PaymentTransitionService paymentTransitionService;
 
-    @Override
-    @Transactional()
-    public PaymentResponse initiate(UUID merchantId, PaymentinitRequest request) {
 
-        OrderRecord order = orderRepository.findByIdAndMerchantId(request.orderId(), merchantId)
+    @Override
+    @Transactional
+    public PaymentResponse initiate(UUID merchantId, PaymentInitRequest request) {
+//        OrderRecord order = orderRepository.findByIdAndMerchantId(request.orderId(), merchantId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Order", request.orderId()));
+
+        OrderRecord order = orderRepository.findByIdAndMerchantIdForUpdate(request.orderId(), merchantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", request.orderId()));
 
-        if(order.getOrderStatus() != OrderStatus.CREATED && order.getOrderStatus() != OrderStatus.ATTEMPTED){
-            throw new BusinessRuleViolationException("ORDER_NOT_PAYABLE", "Order cannot accept payment in status" + order.getOrderStatus());
+        if(order.getOrderStatus() != OrderStatus.CREATED && order.getOrderStatus() != OrderStatus.ATTEMPTED) {
+            throw new BusinessRuleViolationException("ORDER_NOT_PAYABLE",
+                    "Order cannot accept payment in status: "+order.getOrderStatus());
         }
 
         order.setOrderStatus(OrderStatus.ATTEMPTED);
-        order.setAttempts(order.getAttempts() + 1);
+        order.setAttempts(order.getAttempts()+1);
 
         Payment payment = Payment.builder()
                 .order(order)
@@ -62,26 +66,18 @@ public class PaymentServiceImpl implements PaymentService {
                 .amount(order.getAmount())
                 .status(PaymentStatus.CREATED)
                 .method(request.method())
-                .idempotencyKey(UUID.randomUUID().toString())
+                .idempotencyKey(UUID.randomUUID().toString()) //TODO: idempotency
                 .methodDetails(request.methodDetails())
                 .build();
-
         payment = paymentRepository.save(payment);
 
-
-        PaymentRequest paymentRequest = new PaymentRequest(
-                payment.getId(),
-                request.orderId(),
-                merchantId,
-                order.getAmount(),
-                request.method(),
-                request.methodDetails()
-        );
+        PaymentRequest paymentRequest = new PaymentRequest(payment.getId(),
+                request.orderId(), merchantId,
+                order.getAmount(), request.method(),
+                request.methodDetails());
 
         paymentTransitionService.apply(payment, PaymentEvent.AUTHORIZE_ATTEMPT);
-
         PaymentResult result = paymentGatewayRouter.initiate(paymentRequest);
-
 
         switch (result) {
             case PaymentResult.Pending pending -> payment.setProcessorReference(pending.registrationRef());
@@ -92,7 +88,7 @@ public class PaymentServiceImpl implements PaymentService {
                 payment.setErrorDescription(failure.errorDescription());
             }
             case PaymentResult.Success success -> {
-                log.warn("Invlid State");
+                log.warn("Invalid state");
                 return null;
             }
         }
@@ -100,40 +96,52 @@ public class PaymentServiceImpl implements PaymentService {
         payment = paymentRepository.save(payment);
         orderRepository.save(order);
 
-        return paymentMapper.toResponse(payment);
-    }
-
-    @Override
-    public PaymentResponse capture(UUID merchantId, UUID paymentId) {
-        Payment payment = paymentRepository.findByIdAndMerchantId(paymentId, merchantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Payment", paymentId));
-
-        paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_REQUEST);
-
-        PaymentResult paymentResult = paymentGatewayRouter.capture(payment.getMethod(), paymentId);
-
-        if(paymentResult instanceof PaymentResult.Success success){
-            paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_SUCCESS);
-            payment.setCapturedAt(LocalDateTime.now());
-            log.info("Payment captured, paymentId: {}", paymentId);
-
-        } else if(paymentResult instanceof PaymentResult.Failure failure){
-            paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_FAIL);
-            payment.setErrorCode(failure.errorCode());
-            payment.setErrorDescription(failure.errorDescription());
-            log.warn("Payment capture failed, paymentId: {}", paymentId);
-
-        }
-
-        payment = paymentRepository.save(payment);
+        // TODO: send an outbox (kafka event)
 
         return paymentMapper.toResponse(payment);
     }
 
     @Override
     @Transactional
-    public void resolveAuthorization(UUID paymentId, boolean approve, String bankRef, String errorCode, String errorDescription) {
-        Payment payment = paymentRepository.findById(paymentId)
+    public PaymentResponse capture(UUID merchantId, UUID paymentId) {
+
+//        Payment payment = paymentRepository.findByIdAndMerchantId(paymentId, merchantId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Payment", paymentId));
+
+        Payment payment = paymentRepository.findByIdAndMerchantIdForUpdate(paymentId, merchantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment", paymentId));
+
+        paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_REQUEST);
+
+        PaymentResult paymentResult = paymentGatewayRouter.capture(payment.getMethod(), paymentId);
+
+        if(paymentResult instanceof  PaymentResult.Success success) {
+            paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_SUCCESS);
+            payment.setCapturedAt(LocalDateTime.now());
+            log.info("Payment captured, paymentID: {}", paymentId);
+        } else if(paymentResult instanceof  PaymentResult.Failure failure) {
+            paymentTransitionService.apply(payment, PaymentEvent.CAPTURE_FAIL);
+            payment.setErrorCode(failure.errorCode());
+            payment.setErrorDescription(failure.errorDescription());
+            log.warn("Payment capture failed, paymentID: {}", paymentId);
+        }
+
+        payment = paymentRepository.save(payment);
+
+//        TODO: send an outbox (kafka event)
+
+        return paymentMapper.toResponse(payment);
+    }
+
+    @Override
+    @Transactional
+    public void resolveAuthorization(UUID paymentId, boolean approve,
+                                     String bankRef, String errorCode, String errorDescription) {
+
+//        Payment payment = paymentRepository.findById(paymentId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Payment", paymentId));
+
+        Payment payment = paymentRepository.findByIdForUpdate(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment", paymentId));
 
         if (payment.getStatus() != PaymentStatus.AUTHORIZING) {
@@ -172,6 +180,8 @@ public class PaymentServiceImpl implements PaymentService {
 
         // TODO: send an outbox (kafka event)
     }
-
 }
+
+// open for extension
+// closed for modification
 

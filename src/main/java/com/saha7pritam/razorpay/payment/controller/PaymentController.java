@@ -2,7 +2,7 @@ package com.saha7pritam.razorpay.payment.controller;
 
 
 import com.saha7pritam.razorpay.merchant.security.MerchantContext;
-import com.saha7pritam.razorpay.payment.dto.request.PaymentinitRequest;
+import com.saha7pritam.razorpay.payment.dto.request.PaymentInitRequest;
 import com.saha7pritam.razorpay.payment.dto.response.PaymentResponse;
 import com.saha7pritam.razorpay.payment.service.PaymentService;
 import jakarta.validation.Valid;
@@ -23,7 +23,7 @@ public class PaymentController {
 
 
     @PostMapping
-    public ResponseEntity<PaymentResponse> initiate(@Valid @RequestBody PaymentinitRequest request){
+    public ResponseEntity<PaymentResponse> initiate(@Valid @RequestBody PaymentInitRequest request){
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(paymentService.initiate(merchantContext.getMerchantId(), request));
     }
