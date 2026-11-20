@@ -42,3 +42,32 @@ Then it's return the payment creation time with added delay seconds.
 7. `resolve()` will call payment service `resolveAuthorization()` method. IT's a real method inside payment service. Incase of real senario payment processor will be calling this `resolveAuthorization()` [ That's how we are building this, it has our own payment processor] & in case of simulation, 
 simulation will be calling it. Then the payment processor unit will call the payment gateway unit, that's how two services are communicating.
 8. Now this `resolveAuthorization` will take this payment to 'AUTHORIZED' or 'FAILED' state.
+
+
+
+
+
+
+
+
+
+
+
+---
+Redis processes commands one by one on its main thread. Lua scripts allow us to execute multiple Redis operations together as one atomic operation. This prevents other commands from interrupting them midway.
+
+Example: Redis uses Lua scripts to implement rate limiting safely, even when multiple requests arrive simultaneously.
+
+
+- Need to know the trade-offs between Token bucket algorithm vs other algorithm with respect to thread safety while implementing rate limiting in Redis.
+
+
+
+
+
+
+
+### Outbox Event implementation with Retry mechanism
+`Need to check it with details`
+
+- `Learn about Scheduler lock`
